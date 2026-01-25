@@ -148,8 +148,14 @@ Openwork runs locally on your machine. Your files stay on your device, and you c
 
 ## System requirements
 
+**Desktop App:**
 - macOS (Apple Silicon)
 - Windows support coming soon
+
+**Browser Mode (Beta):**
+- Any Chromium-based browser (Chrome, Edge, Brave, Arc)
+- Node.js 20+ (for running the web server)
+- See [Browser Mode Guide](docs/BROWSER_MODE.md) for setup instructions
 
 <br />
 
@@ -240,23 +246,35 @@ That's it.
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dev` | Run desktop app in dev mode |
+| `pnpm dev` | Run desktop app in dev mode (Electron) |
 | `pnpm dev:clean` | Dev mode with clean start |
 | `pnpm build` | Build all workspaces |
 | `pnpm build:desktop` | Build desktop app only |
 | `pnpm lint` | TypeScript checks |
 | `pnpm typecheck` | Type validation |
 | `pnpm -F @accomplish/desktop test:e2e` | Playwright E2E tests |
+| `pnpm -F @accomplish/web-server dev` | Run web server (for browser mode) |
+
+**Browser Mode**: See [Browser Mode Guide](docs/BROWSER_MODE.md) for running the app in Chrome/Edge/Brave.
 
 </details>
 
 <details>
 <summary><strong>Environment Variables</strong></summary>
 
+**Desktop App (Electron Mode):**
+
 | Variable | Description |
 |----------|-------------|
 | `CLEAN_START=1` | Clear all stored data on app start |
 | `E2E_SKIP_AUTH=1` | Skip onboarding flow (for testing) |
+
+**Browser Mode:**
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_BASE_URL` | Web server API URL (default: http://localhost:3001) |
+| `VITE_WS_URL` | WebSocket URL (default: ws://localhost:3002) |
 
 </details>
 
@@ -266,11 +284,14 @@ That's it.
 ```
 apps/
   desktop/        # Electron app (main + preload + renderer)
+  web-server/     # Web server for browser mode (Express + WebSocket)
 packages/
   shared/         # Shared TypeScript types
 ```
 
-The desktop app uses Electron with a React UI bundled via Vite. The main process spawns [OpenCode](https://github.com/sst/opencode) CLI using `node-pty` to execute tasks. API keys are stored securely in the OS keychain.
+**Electron Mode** (Default): The desktop app uses Electron with a React UI bundled via Vite. The main process spawns [OpenCode](https://github.com/sst/opencode) CLI using `node-pty` to execute tasks. API keys are stored securely in the OS keychain.
+
+**Browser Mode** (Beta): The renderer connects to a web server backend via HTTP/WebSocket. The server handles OpenCode CLI execution, database operations, and API key storage. See [Browser Mode Guide](docs/BROWSER_MODE.md) for details.
 
 See [CLAUDE.md](CLAUDE.md) for detailed architecture documentation.
 
