@@ -1,8 +1,8 @@
 /**
- * Accomplish API - Interface to the Electron main process
+ * Accomplish API - Interface to both Electron and Browser modes
  *
  * This module provides type-safe access to the accomplish API
- * exposed by the preload script via contextBridge.
+ * which can work in both Electron (via IPC) and Browser (via HTTP/WS) modes.
  */
 
 import type {
@@ -20,6 +20,8 @@ import type {
   ProviderId,
   ConnectedProvider,
 } from '@accomplish/shared';
+import { isElectron } from './environment';
+import { browserApi } from './browserApi';
 
 // Define the API interface
 interface AccomplishAPI {
@@ -162,9 +164,15 @@ declare global {
 
 /**
  * Get the accomplish API
- * Throws if not running in Electron
+ * Works in both Electron and browser modes
  */
 export function getAccomplish() {
+  // Browser mode - use HTTP/WS API
+  if (!isElectron()) {
+    return createBrowserAccomplishAPI();
+  }
+  
+  // Electron mode - use IPC API
   if (!window.accomplish) {
     throw new Error('Accomplish API not available - not running in Electron');
   }
@@ -188,10 +196,121 @@ export function getAccomplish() {
 }
 
 /**
+ * Create browser-compatible API wrapper
+ */
+function createBrowserAccomplishAPI(): AccomplishAPI {
+  return {
+    // App info
+    getVersion: () => browserApi.getVersion(),
+    getPlatform: () => browserApi.getPlatform(),
+    
+    // Shell
+    openExternal: (url: string) => browserApi.openExternal(url),
+    
+    // Task operations
+    startTask: (config: TaskConfig) => browserApi.startTask({ description: config.prompt }),
+    cancelTask: (taskId: string) => browserApi.cancelTask(taskId),
+    interruptTask: (taskId: string) => browserApi.interruptTask(taskId),
+    getTask: (taskId: string) => browserApi.getTask(taskId),
+    listTasks: () => browserApi.listTasks(),
+    deleteTask: (taskId: string) => browserApi.deleteTask(taskId),
+    clearTaskHistory: () => browserApi.clearTaskHistory(),
+    
+    // Permission responses
+    respondToPermission: () => Promise.reject(new Error('Not implemented in browser mode')),
+    
+    // Session management
+    resumeSession: () => Promise.reject(new Error('Not implemented in browser mode')),
+    
+    // Settings (not all implemented for browser mode yet)
+    getApiKeys: () => Promise.resolve([]),
+    addApiKey: () => Promise.reject(new Error('Not implemented in browser mode')),
+    removeApiKey: () => Promise.reject(new Error('Not implemented in browser mode')),
+    getDebugMode: () => Promise.resolve(false),
+    setDebugMode: () => Promise.resolve(),
+    getAppSettings: async () => ({ debugMode: false, onboardingComplete: await browserApi.getOnboardingComplete() }),
+    
+    // API Key management (simplified for browser)
+    hasApiKey: () => browserApi.hasAnyApiKey(),
+    setApiKey: (key: string) => browserApi.setApiKey('default', key),
+    getApiKey: () => browserApi.getApiKey('default'),
+    validateApiKey: (key: string) => browserApi.validateApiKey('default', key),
+    validateApiKeyForProvider: (provider: string, key: string) => browserApi.validateApiKey(provider, key),
+    clearApiKey: () => browserApi.removeApiKey('default'),
+    
+    // Onboarding
+    getOnboardingComplete: () => browserApi.getOnboardingComplete(),
+    setOnboardingComplete: (complete: boolean) => browserApi.setOnboardingComplete(complete),
+    
+    // OpenCode CLI status
+    checkClaudeCli: () => Promise.resolve({ installed: false, version: null, installCommand: '' }),
+    getClaudeVersion: () => Promise.resolve(null),
+    
+    // Model selection
+    getSelectedModel: () => Promise.resolve(null),
+    setSelectedModel: () => Promise.resolve(),
+    
+    // Multi-provider API keys
+    getAllApiKeys: () => browserApi.getAllApiKeys(),
+    hasAnyApiKey: () => browserApi.hasAnyApiKey(),
+    
+    // Ollama configuration
+    testOllamaConnection: () => Promise.reject(new Error('Not implemented in browser mode')),
+    getOllamaConfig: () => Promise.resolve(null),
+    setOllamaConfig: () => Promise.resolve(),
+    
+    // Azure Foundry
+    getAzureFoundryConfig: () => Promise.resolve(null),
+    setAzureFoundryConfig: () => Promise.resolve(),
+    testAzureFoundryConnection: () => Promise.reject(new Error('Not implemented in browser mode')),
+    saveAzureFoundryConfig: () => Promise.resolve(),
+    
+    // LiteLLM
+    testLiteLLMConnection: () => Promise.reject(new Error('Not implemented in browser mode')),
+    fetchLiteLLMModels: () => Promise.reject(new Error('Not implemented in browser mode')),
+    getLiteLLMConfig: () => Promise.resolve(null),
+    setLiteLLMConfig: () => Promise.resolve(),
+    
+    // OpenRouter
+    fetchOpenRouterModels: () => Promise.reject(new Error('Not implemented in browser mode')),
+    
+    // Bedrock
+    validateBedrockCredentials: () => Promise.reject(new Error('Not implemented in browser mode')),
+    fetchBedrockModels: () => Promise.reject(new Error('Not implemented in browser mode')),
+    saveBedrockCredentials: () => Promise.reject(new Error('Not implemented in browser mode')),
+    getBedrockCredentials: () => Promise.resolve(null),
+    
+    // E2E Testing
+    isE2EMode: () => Promise.resolve(false),
+    
+    // Provider settings
+    getProviderSettings: () => Promise.resolve({ activeProvider: null, activeProviderId: null, connectedProviders: {}, debugMode: false }),
+    setActiveProvider: () => Promise.resolve(),
+    getConnectedProvider: () => Promise.resolve(null),
+    setConnectedProvider: () => Promise.resolve(),
+    removeConnectedProvider: () => Promise.resolve(),
+    updateProviderModel: () => Promise.resolve(),
+    setProviderDebugMode: () => Promise.resolve(),
+    getProviderDebugMode: () => Promise.resolve(false),
+    
+    // Event subscriptions
+    onTaskUpdate: (callback: (event: TaskUpdateEvent) => void) => browserApi.on('task:update', callback),
+    onTaskProgress: (callback: (progress: TaskProgress) => void) => browserApi.on('task:progress', callback),
+    onPermissionRequest: (callback: (request: PermissionRequest) => void) => browserApi.on('permission:request', callback),
+    onTaskSummary: (callback: (data: { taskId: string; summary: string }) => void) => browserApi.on('task:summary', callback),
+    onQuestionRequest: (callback: any) => browserApi.on('question:request', callback),
+    onDebugLog: (callback: (log: unknown) => void) => browserApi.on('debug:log', callback),
+    
+    // Logging
+    logEvent: () => Promise.resolve(undefined),
+  };
+}
+
+/**
  * Check if running in Electron shell
  */
 export function isRunningInElectron(): boolean {
-  return window.accomplishShell?.isElectron === true;
+  return isElectron();
 }
 
 /**
