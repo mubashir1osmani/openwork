@@ -95,6 +95,10 @@ router.delete('/:provider', async (req, res) => {
 
 /**
  * Validate an API key (basic check - actually calling the provider API would be better)
+ * 
+ * ⚠️ WARNING: This endpoint provides false security by only checking if the key is non-empty.
+ * For production use, implement real validation by calling the provider's API endpoint.
+ * Consider removing this endpoint entirely if real validation isn't implemented.
  */
 router.post('/:provider/validate', async (req, res) => {
   try {
@@ -105,10 +109,14 @@ router.post('/:provider/validate', async (req, res) => {
       return res.status(400).json({ valid: false, error: 'API key is required' });
     }
     
-    // Basic validation - just check if it's not empty
-    // In a real implementation, you'd call the provider API to validate
+    // ⚠️ This is NOT real validation - just checks if key is non-empty
+    // For production, make an actual API call to the provider to validate the key
     const valid = key.length > 0;
-    res.json({ valid, error: valid ? undefined : 'Invalid API key format' });
+    res.json({ 
+      valid, 
+      error: valid ? undefined : 'Invalid API key format',
+      warning: 'This is a basic format check only. Real validation against provider API not implemented.'
+    });
   } catch (error) {
     console.error('[API Keys] Error validating API key:', error);
     res.status(500).json({ valid: false, error: 'Failed to validate API key' });

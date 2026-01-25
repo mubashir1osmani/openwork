@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import dotenv from 'dotenv';
 import apiKeysRouter from './routes/apiKeys.js';
 import { getDatabase, closeDatabase } from './store/db.js';
+import pkg from '../package.json' assert { type: 'json' };
 
 dotenv.config();
 
@@ -35,7 +36,7 @@ app.get('/health', (req, res) => {
 
 // App info endpoints
 app.get('/api/app/version', (req, res) => {
-  res.json({ version: process.env.npm_package_version || '0.3.1' });
+  res.json({ version: pkg.version });
 });
 
 app.get('/api/app/platform', (req, res) => {

@@ -4,22 +4,46 @@ import { getDatabase } from './db';
 
 /**
  * Simple API key storage for web server.
- * In a production deployment, you should:
- * 1. Use environment variables for API keys
- * 2. Implement proper user authentication
- * 3. Store encrypted API keys per user in database
- * 4. Use HTTPS only
  * 
- * For now, this stores API keys in the SQLite database with basic encryption.
+ * ⚠️ SECURITY WARNING: This implementation uses basic XOR encryption which is NOT secure
+ * for production use. It's suitable for development/demo only.
+ * 
+ * For production deployment, you MUST:
+ * 1. Use proper encryption (AES-256-GCM) via Node.js crypto module
+ * 2. Use a secrets management service (HashiCorp Vault, AWS Secrets Manager, etc.)
+ * 3. Implement user authentication and store keys per-user
+ * 4. Use environment variables for API keys when possible
+ * 5. Never commit encryption keys to version control
+ * 
+ * Example of proper encryption:
+ * ```typescript
+ * import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+ * 
+ * function encrypt(text: string, key: Buffer): { encrypted: string; iv: string } {
+ *   const iv = randomBytes(16);
+ *   const cipher = createCipheriv('aes-256-gcm', key, iv);
+ *   let encrypted = cipher.update(text, 'utf8', 'hex');
+ *   encrypted += cipher.final('hex');
+ *   return { encrypted, iv: iv.toString('hex') };
+ * }
+ * ```
  */
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'change-me-in-production';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
-// Simple XOR encryption (NOT secure for production, just for demo)
+if (!ENCRYPTION_KEY) {
+  throw new Error('ENCRYPTION_KEY environment variable is required for secure API key storage. Set a strong random string (32+ characters) in your .env file.');
+}
+
+// TypeScript assertion since we've checked it exists
+const encryptionKey: string = ENCRYPTION_KEY;
+
+// Simple XOR encryption (⚠️ NOT SECURE - FOR DEMO ONLY)
+// Replace with proper AES-256-GCM encryption for production
 function simpleEncrypt(text: string): string {
   let result = '';
   for (let i = 0; i < text.length; i++) {
-    result += String.fromCharCode(text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length));
+    result += String.fromCharCode(text.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length));
   }
   return Buffer.from(result).toString('base64');
 }
@@ -28,7 +52,7 @@ function simpleDecrypt(encrypted: string): string {
   const text = Buffer.from(encrypted, 'base64').toString();
   let result = '';
   for (let i = 0; i < text.length; i++) {
-    result += String.fromCharCode(text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length));
+    result += String.fromCharCode(text.charCodeAt(i) ^ encryptionKey.charCodeAt(i % encryptionKey.length));
   }
   return result;
 }

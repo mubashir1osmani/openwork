@@ -3,8 +3,26 @@
 /**
  * Detect the current runtime environment
  */
+
+// Define types for window extensions
+interface AccomplishShell {
+  isElectron: boolean;
+  version: string;
+  platform: string;
+}
+
+declare global {
+  interface Window {
+    accomplishShell?: AccomplishShell;
+    accomplish?: any; // Full type defined in accomplish.ts
+  }
+}
+
 export function isElectron(): boolean {
-  return !!(window as any).accomplish && typeof ((window as any).accomplishShell) !== 'undefined' && (window as any).accomplishShell?.isElectron === true;
+  // Check for Electron-specific window.accomplishShell marker
+  return typeof window !== 'undefined' && 
+         window.accomplishShell !== undefined && 
+         window.accomplishShell.isElectron === true;
 }
 
 /**
