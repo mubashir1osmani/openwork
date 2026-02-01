@@ -839,8 +839,10 @@ test.describe('Execution Page', () => {
     expect(clipboardText).toBeTruthy();
     expect(clipboardText.length).toBeGreaterThan(0);
 
-    // Verify visual feedback - button should have green styling
+    // Verify visual feedback - button should have green background
+    // User messages use !text-green-300, assistant messages use !text-green-600
+    // Both use bg-green-500 variants, so check for that common pattern
     const buttonClasses = await firstCopyButton.getAttribute('class');
-    expect(buttonClasses).toContain('text-green-300');
+    expect(buttonClasses).toContain('bg-green-500');
   });
 });
